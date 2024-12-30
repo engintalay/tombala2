@@ -19,7 +19,7 @@
             grid-template-columns: repeat(9, 1fr);
             grid-template-rows: repeat(3, 1fr);
             grid-gap: 2px;
-            width: 300px;
+            width: 240px; /* Reduced width */
             margin: 10px;
             padding: 10px;
             border: 1px solid #000;
@@ -29,8 +29,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 30px;
-            height: 30px;
+            width: 20px; /* Reduced width */
+            height: 20px; /* Reduced height */
             border: 1px solid #000;
             margin: 0;
             text-align: center;
@@ -69,9 +69,25 @@
         .card-owner {
             font-size: 12px;
             color: gray;
+            grid-column: span 9; /* Span the entire row */
+            text-align: center;
         }
         .reset-user {
             margin-top: 20px;
+        }
+        .selected-cards-container {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 300px;
+            height: 100%;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            border-left: 1px solid #ccc;
+            padding: 10px;
+        }
+        .selected-card {
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -89,6 +105,9 @@
     <div id="cards" class="cards-container"></div>
     <div id="legend">
         <!-- ...existing code... -->
+    </div>
+    <div id="selectedCardsContainer" class="selected-cards-container">
+        <h2>Seçilen Kartlar</h2>
     </div>
 
     <script>
@@ -119,6 +138,10 @@
                 markDrawnNumbersOnCards();
                 checkForCinkoOrTombala();
             } else if (data.type === 'startGame') {
+                if (selectedCards.length === 0) {
+                    alert("Oyun başlamadan önce en az bir kart seçmelisiniz!");
+                    return;
+                }
                 gameStarted = true;
                 disableCardActions();
             } else if (data.type === 'resetGame') {
@@ -128,6 +151,7 @@
             } else if (data.type === 'newCard') {
                 const card = document.createElement('div');
                 card.className = 'card';
+                card.dataset.cardId = data.cardId;
                 data.cardNumbers.forEach(num => {
                     const cell = document.createElement('div');
                     cell.className = num ? 'number' : 'blank';
@@ -148,26 +172,38 @@
         };
 
         function startGame() {
-            ws.send(JSON.stringify({ type: 'startGame' }));
+            if (selectedCards.length === 0) {
+                alert("Oyun başlamadan önce en az bir kart seçmelisiniz!");
+                return;
+            }
+            if (confirm("Oyunu başlatmak istediğinize emin misiniz?")) {
+                ws.send(JSON.stringify({ type: 'startGame' }));
+            }
         }
 
         function drawNumber() {
+            if (!gameStarted) {
+                alert("Oyun başlamadan taş çekemezsiniz!");
+                return;
+            }
             ws.send(JSON.stringify({ type: 'drawNumber' }));
         }
 
         function resetGame() {
-            drawnNumbers = [];
-            gameStarted = false;
-            selectedCards = [];
-            cinkoAchieved = false;
-            ciftCinkoAchieved = false;
-            document.getElementById('drawnNumber').innerText = '';
-            document.getElementById('drawnNumbers').innerHTML = '';
-            document.getElementById('remainingStones').innerText = "Kalan Taş Sayısı: 90";
-            const cards = document.querySelectorAll('.card');
-            cards.forEach(card => {
-                card.remove();
-            });
+            if (confirm("Oyunu sıfırlamak istediğinize emin misiniz?")) {
+                drawnNumbers = [];
+                gameStarted = false;
+                selectedCards = [];
+                cinkoAchieved = false;
+                ciftCinkoAchieved = false;
+                document.getElementById('drawnNumber').innerText = '';
+                document.getElementById('drawnNumbers').innerHTML = '';
+                document.getElementById('remainingStones').innerText = "Kalan Taş Sayısı: 90";
+                const cards = document.querySelectorAll('.card');
+                cards.forEach(card => {
+                    card.remove();
+                });
+            }
         }
 
         function updateDrawnNumbers() {
@@ -204,7 +240,10 @@
         }
 
         function generateCard() {
-            if (gameStarted) return;
+            if (gameStarted) {
+                alert("Oyun başladıktan sonra kart üretemezsiniz!");
+                return;
+            }
             askForPlayerName();
             const card = document.createElement('div');
             card.className = 'card';
@@ -252,12 +291,21 @@
         }
 
         function selectCard(card) {
+            const selectedCardsContainer = document.getElementById('selectedCardsContainer');
             if (selectedCards.includes(card)) {
                 selectedCards = selectedCards.filter(c => c !== card);
                 card.style.borderColor = '';
+                const selectedCardElement = selectedCardsContainer.querySelector(`[data-card-id="${card.dataset.cardId}"]`);
+                if (selectedCardElement) {
+                    selectedCardsContainer.removeChild(selectedCardElement);
+                }
             } else {
                 selectedCards.push(card);
                 card.style.borderColor = 'orange';
+                const selectedCardElement = card.cloneNode(true);
+                selectedCardElement.classList.add('selected-card');
+                selectedCardElement.dataset.cardId = card.dataset.cardId;
+                selectedCardsContainer.appendChild(selectedCardElement);
             }
         }
 
@@ -295,7 +343,10 @@
         }
 
         async function loadCards() {
-            if (gameStarted) return;
+            if (gameStarted) {
+                alert("Oyun başladıktan sonra kartları yükleyemezsiniz!");
+                return;
+            }
             askForPlayerName();
             const response = await fetch('cards.json');
             const cardsData = await response.json();
@@ -328,9 +379,11 @@
         }
 
         function resetUser() {
-            sessionStorage.removeItem('playerName');
-            playerName = null;
-            alert("User reset. Please refresh the page to enter a new name.");
+            if (confirm("Kullanıcıyı sıfırlamak istediğinize emin misiniz?")) {
+                sessionStorage.removeItem('playerName');
+                playerName = null;
+                alert("User reset. Please refresh the page to enter a new name.");
+            }
         }
     </script>
 </body>
