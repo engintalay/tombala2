@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tombala</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .cards-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .card {
+            flex: 0 1 30%; /* Adjust the percentage to fit the cards as needed */
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-gap: 2px;
+            width: 270px; /* Adjust the width to fit the cards as needed */
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #000;
+            background-color: #fff;
+        }
+        .number, .blank {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            border: 1px solid #000;
+            margin: 0;
+            text-align: center;
+        }
+        .blank {
+            background-color: #f0f0f0;
+        }
+        .marked {
+            background-color: yellow;
+        }
+        .drawn-numbers {
+            margin: 20px 0;
+        }
+        .drawn-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            border: 1px solid #000;
+            margin: 2px;
+            text-align: center;
+            background-color: #ddd;
+        }
+        .cinko {
+            border-color: blue;
+            background-color: lightblue;
+        }
+        .cift-cinko {
+            border-color: green;
+            background-color: lightgreen;
+        }
+        .tombala {
+            border-color: red;
+            background-color: lightcoral;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tombala</h1>
+    <button onclick="drawNumber()">Taş Çek</button>
+    <div id="drawnNumber"></div>
+    <div id="drawnNumbers" class="drawn-numbers"></div>
+    <div id="remainingStones">Kalan Taş Sayısı: 90</div>
+    <button onclick="generateCard()">Kart Üret-2</button>
+    <button onclick="loadCards()">Kartları Yükle</button>
+    <button onclick="resetGame()">Reset</button>
+    <div id="cards" class="cards-container"></div>
+    <div id="legend">
+        <p><span style="border: 1px solid blue; padding: 2px; background-color: lightblue;">&nbsp;&nbsp;&nbsp;&nbsp;</span> Çinko</p>
+        <p><span style="border: 1px solid green; padding: 2px; background-color: lightgreen;">&nbsp;&nbsp;&nbsp;&nbsp;</span> Çift Çinko</p>
+        <p><span style="border: 1px solid red; padding: 2px; background-color: lightcoral;">&nbsp;&nbsp;&nbsp;&nbsp;</span> Tombala</p>
+    </div>
+
+    <script>
+        let drawnNumbers = [];
+        const totalStones = 90;
+        let cinkoAchieved = false;
+        let ciftCinkoAchieved = false;
+        let gameStarted = false;
+        let selectedCards = [];
+
+        function drawNumber() {
+            if (!gameStarted) {
+                gameStarted = true;
+                disableCardActions();
+            }
+            if (drawnNumbers.length >= totalStones) {
+                alert("Tüm taşlar çekildi!");
+                return;
+            }
+            let number;
+            do {
+                number = Math.floor(Math.random() * totalStones) + 1;
+            } while (drawnNumbers.includes(number));
+            drawnNumbers.push(number);
+            document.getElementById('drawnNumber').innerText = "Çekilen Taş: " + number;
+            updateDrawnNumbers();
+            updateRemainingStones();
+            markDrawnNumbersOnCards();
+            checkForCinkoOrTombala();
+        }
+
+        function updateDrawnNumbers() {
+            const drawnNumbersDiv = document.getElementById('drawnNumbers');
+            drawnNumbersDiv.innerHTML = '';
+            drawnNumbers.forEach(num => {
+                const numberDiv = document.createElement('div');
+                numberDiv.className = 'drawn-number';
+                numberDiv.innerText = num;
+                drawnNumbersDiv.appendChild(numberDiv);
+            });
+        }
+
+        function updateRemainingStones() {
+            const remainingStones = totalStones - drawnNumbers.length;
+            document.getElementById('remainingStones').innerText = "Kalan Taş Sayısı: " + remainingStones;
+        }
+
+        function markDrawnNumbersOnCards() {
+            const cards = document.querySelectorAll('.card .number');
+            cards.forEach(cell => {
+                const number = parseInt(cell.innerText, 10);
+                if (drawnNumbers.includes(number)) {
+                    cell.classList.add('marked');
+                }
+            });
+        }
+
+        function generateCard() {
+            if (gameStarted) return;
+            const card = document.createElement('div');
+            card.className = 'card';
+            const columns = Array.from({ length: 9 }, (_, i) => {
+                const start = i * 10 + 1;
+                const end = start + 9;
+                return Array.from({ length: 10 }, (_, j) => start + j);
+            });
+
+            const cardNumbers = Array(27).fill(null);
+            [0, 9, 18].forEach(start => {
+                const rowNumbers = [];
+                while (rowNumbers.length < 5) {
+                    const colIndex = Math.floor(Math.random() * 9);
+                    const col = columns[colIndex];
+                    if (col.length > 0) {
+                        const num = col.splice(Math.floor(Math.random() * col.length), 1)[0];
+                        rowNumbers.push({ num, colIndex });
+                    }
+                }
+                rowNumbers.sort((a, b) => a.colIndex - b.colIndex).forEach(({ num, colIndex }) => {
+                    cardNumbers[start + colIndex] = num;
+                });
+            });
+
+            cardNumbers.forEach(num => {
+                const cell = document.createElement('div');
+                cell.className = num ? 'number' : 'blank';
+                if (num) {
+                    cell.innerText = num;
+                }
+                card.appendChild(cell);
+            });
+
+            card.onclick = () => selectCard(card);
+            document.getElementById('cards').appendChild(card);
+        }
+
+        function selectCard(card) {
+            if (selectedCards.includes(card)) {
+                selectedCards = selectedCards.filter(c => c !== card);
+                card.style.borderColor = '';
+            } else {
+                selectedCards.push(card);
+                card.style.borderColor = 'orange';
+            }
+        }
+
+        function disableCardActions() {
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.onclick = null;
+            });
+        }
+
+        function checkForCinkoOrTombala() {
+            selectedCards.forEach(card => {
+                const rows = [0, 9, 18];
+                let cinkoCount = 0;
+                rows.forEach(start => {
+                    const rowNumbers = Array.from(card.children).slice(start, start + 9);
+                    const markedCount = rowNumbers.filter(cell => cell.classList.contains('marked')).length;
+                    if (markedCount === 5) {
+                        cinkoCount++;
+                    }
+                });
+                if (cinkoCount === 1 && !cinkoAchieved) {
+                    card.classList.add('cinko');
+                    alert("Çinko!");
+                    cinkoAchieved = true;
+                } else if (cinkoCount === 2 && !ciftCinkoAchieved) {
+                    card.classList.add('cift-cinko');
+                    alert("Çift Çinko!");
+                    ciftCinkoAchieved = true;
+                } else if (cinkoCount === 3 && !card.classList.contains('tombala')) { // Add check for Tombala
+                    card.classList.add('tombala');
+                    alert("Tombala!");
+                }
+            });
+        }
+
+        async function loadCards() {
+            if (gameStarted) return;
+            const response = await fetch('cards.json');
+            const cardsData = await response.json();
+            const cardsContainer = document.getElementById('cards');
+            cardsContainer.innerHTML = '';
+
+            Object.values(cardsData).forEach(cardNumbers => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                cardNumbers.forEach(num => {
+                    const cell = document.createElement('div');
+                    cell.className = num ? 'number' : 'blank';
+                    if (num) {
+                        cell.innerText = num;
+                    }
+                    card.appendChild(cell);
+                });
+                card.onclick = () => selectCard(card);
+                cardsContainer.appendChild(card);
+            });
+        }
+
+        function resetGame() {
+            drawnNumbers = [];
+            cinkoAchieved = false;
+            ciftCinkoAchieved = false;
+            gameStarted = false;
+            selectedCards = [];
+            document.getElementById('drawnNumber').innerText = '';
+            document.getElementById('drawnNumbers').innerHTML = '';
+            document.getElementById('remainingStones').innerText = "Kalan Taş Sayısı: 90";
+            document.getElementById('cards').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
