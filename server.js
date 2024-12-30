@@ -11,6 +11,7 @@ let drawnNumbers = [];
 let cinkoAchieved = false;
 let ciftCinkoAchieved = false;
 let gameStarted = false;
+let gameStarter = null;
 
 app.use(express.static('public'));
 
@@ -21,14 +22,22 @@ wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         console.log('Received message:', message);
         const data = JSON.parse(message);
-        if (data.type === 'drawNumber' && gameStarted) {
+        if (data.type === 'drawNumber' && gameStarted && ws === gameStarter) {
             drawNumber(ws);
         } else if (data.type === 'startGame') {
             gameStarted = true;
+            gameStarter = ws;
             broadcast({ type: 'startGame' });
-        } else if (data.type === 'resetGame') {
+        } else if (data.type === 'resetGame' && ws === gameStarter) {
             resetGame();
             broadcast({ type: 'resetGame' });
+        } else if (data.type === 'saveCard') {
+            saveCard(data.cardId, data.cardNumbers, data.ownerName);
+        } else if (data.type === 'removeCard') {
+            removeCard(data.cardId);
+        } else if (data.type === 'stopGame') {
+            gameStarted = false;
+            broadcast({ type: 'stopGame' });
         }
     });
 
@@ -78,6 +87,36 @@ function drawNumber(ws) {
     } while (drawnNumbers.includes(number));
     drawnNumbers.push(number);
     broadcast({ type: 'drawNumber', number, drawnNumbers });
+    checkForCinkoOrTombala();
+}
+
+function checkForCinkoOrTombala() {
+    const cardsData = JSON.parse(fs.readFileSync('otherClientsCards.json'));
+    Object.entries(cardsData).forEach(([cardId, cardData]) => {
+        const cardNumbers = cardData.cardNumbers;
+        const rows = [0, 9, 18];
+        let cinkoCount = 0;
+        rows.forEach(start => {
+            const rowNumbers = cardNumbers.slice(start, start + 9);
+            const markedCount = rowNumbers.filter(num => drawnNumbers.includes(num)).length;
+            if (markedCount === 5) {
+                cinkoCount++;
+            }
+        });
+        if (cinkoCount === 1 && !cinkoAchieved) {
+            broadcast({ type: 'cinko', cardId });
+            broadcast({ type: 'alert', message: 'Çinko!' });
+            cinkoAchieved = true;
+        } else if (cinkoCount === 2 && !ciftCinkoAchieved) {
+            broadcast({ type: 'ciftCinko', cardId });
+            broadcast({ type: 'alert', message: 'Çift Çinko!' });
+            ciftCinkoAchieved = true;
+        } else if (cinkoCount === 3) {
+            broadcast({ type: 'tombala', cardId });
+            broadcast({ type: 'alert', message: 'Tombala!' });
+            gameStarted = false;
+        }
+    });
 }
 
 function resetGame() {
@@ -85,6 +124,7 @@ function resetGame() {
     cinkoAchieved = false;
     ciftCinkoAchieved = false;
     gameStarted = false;
+    gameStarter = null;
 }
 
 function broadcast(data) {
@@ -93,6 +133,25 @@ function broadcast(data) {
             client.send(JSON.stringify(data));
         }
     });
+}
+
+function saveCard(cardId, cardNumbers, ownerName) {
+    const filePath = 'otherClientsCards.json';
+    let cardsData = {};
+    if (fs.existsSync(filePath)) {
+        cardsData = JSON.parse(fs.readFileSync(filePath));
+    }
+    cardsData[cardId] = { cardNumbers, ownerName };
+    fs.writeFileSync(filePath, JSON.stringify(cardsData, null, 2));
+}
+
+function removeCard(cardId) {
+    const filePath = 'otherClientsCards.json';
+    if (fs.existsSync(filePath)) {
+        const cardsData = JSON.parse(fs.readFileSync(filePath));
+        delete cardsData[cardId];
+        fs.writeFileSync(filePath, JSON.stringify(cardsData, null, 2));
+    }
 }
 
 server.listen(3000, () => {

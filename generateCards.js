@@ -20,7 +20,7 @@ function generateAllCards() {
             while (rowNumbers.length < 5) {
                 const colIndex = Math.floor(Math.random() * 9);
                 const col = columns[colIndex];
-                if (col.length > 0 && columnCounts[colIndex] < 2) {
+                if (col && col.length > 0 && columnCounts[colIndex] < 2) {
                     const num = col.splice(Math.floor(Math.random() * col.length), 1)[0];
                     rowNumbers.push({ num, colIndex });
                     columnCounts[colIndex]++;
@@ -35,12 +35,32 @@ function generateAllCards() {
         for (let i = 0; i < 9; i++) {
             if (columnCounts[i] === 0) {
                 const col = columns[i];
-                const num = col.splice(Math.floor(Math.random() * col.length), 1)[0];
-                const emptyIndex = [0, 9, 18].find(start => cardNumbers[start + i] === null);
-                cardNumbers[emptyIndex + i] = num;
-                columnCounts[i]++;
+                if (col && col.length > 0) {
+                    const num = col.splice(Math.floor(Math.random() * col.length), 1)[0];
+                    const emptyIndex = [0, 9, 18].find(start => cardNumbers[start + i] === null);
+                    cardNumbers[emptyIndex + i] = num;
+                    columnCounts[i]++;
+                }
             }
         }
+
+        // Ensure each row has exactly 5 numbers
+        [0, 9, 18].forEach(start => {
+            const rowNumbers = cardNumbers.slice(start, start + 9);
+            const filledCount = rowNumbers.filter(num => num !== null).length;
+            if (filledCount < 5) {
+                const emptyIndices = rowNumbers.map((num, index) => num === null ? index : -1).filter(index => index !== -1);
+                while (filledCount < 5) {
+                    const colIndex = emptyIndices.pop();
+                    const col = columns[colIndex];
+                    if (col && col.length > 0) {
+                        const num = col.splice(Math.floor(Math.random() * col.length), 1)[0];
+                        cardNumbers[start + colIndex] = num;
+                        columnCounts[colIndex]++;
+                    }
+                }
+            }
+        });
 
         const cardString = JSON.stringify(cardNumbers);
         if (!generatedCards.has(cardString)) {

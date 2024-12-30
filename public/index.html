@@ -98,10 +98,11 @@
     <div id="drawnNumber"></div>
     <div id="drawnNumbers" class="drawn-numbers"></div>
     <div id="remainingStones">Kalan Taş Sayısı: 90</div>
-    <button onclick="generateCard()">Kart Üret</button>
+    <!-- <button onclick="generateCard()">Kart Üret</button> -->
     <button onclick="loadCards()">Kartları Yükle</button>
     <button onclick="resetGame()">Reset</button>
     <button onclick="resetUser()" class="reset-user">Reset User</button>
+    <button onclick="loadOtherClientsCards()">Diğer Kullanıcıların Kartlarını Yükle</button>
     <div id="cards" class="cards-container"></div>
     <div id="legend">
         <!-- ...existing code... -->
@@ -117,6 +118,7 @@
         let cinkoAchieved = false;
         let ciftCinkoAchieved = false;
         let playerName = sessionStorage.getItem('playerName');
+        let isGameStarter = false;
 
         const ws = new WebSocket('ws://' + window.location.host);
 
@@ -136,14 +138,11 @@
                 updateDrawnNumbers();
                 updateRemainingStones();
                 markDrawnNumbersOnCards();
-                checkForCinkoOrTombala();
             } else if (data.type === 'startGame') {
-                if (selectedCards.length === 0) {
-                    alert("Oyun başlamadan önce en az bir kart seçmelisiniz!");
-                    return;
-                }
                 gameStarted = true;
                 disableCardActions();
+                const cardsContainer = document.getElementById('cards');
+                cardsContainer.innerHTML = ''; // Remove the cards in the center
             } else if (data.type === 'resetGame') {
                 resetGame();
             } else if (data.type === 'alert') {
@@ -168,6 +167,16 @@
 
                 card.onclick = () => selectCard(card);
                 document.getElementById('cards').appendChild(card);
+            } else if (data.type === 'cinko') {
+                alert("Çinko!");
+                highlightCinko(data.cardId);
+            } else if (data.type === 'ciftCinko') {
+                alert("Çift Çinko!");
+                highlightCiftCinko(data.cardId);
+            } else if (data.type === 'tombala') {
+                alert("Tombala!");
+                highlightTombala(data.cardId);
+                gameStarted = false; // Stop the game
             }
         };
 
@@ -178,6 +187,7 @@
             }
             if (confirm("Oyunu başlatmak istediğinize emin misiniz?")) {
                 ws.send(JSON.stringify({ type: 'startGame' }));
+                isGameStarter = true;
             }
         }
 
@@ -186,23 +196,20 @@
                 alert("Oyun başlamadan taş çekemezsiniz!");
                 return;
             }
+            if (!isGameStarter) {
+                alert("Sadece oyunu başlatan taş çekebilir!");
+                return;
+            }
             ws.send(JSON.stringify({ type: 'drawNumber' }));
         }
 
         function resetGame() {
+            if (!isGameStarter) {
+                alert("Sadece oyunu başlatan oyunu resetleyebilir!");
+                return;
+            }
             if (confirm("Oyunu sıfırlamak istediğinize emin misiniz?")) {
-                drawnNumbers = [];
-                gameStarted = false;
-                selectedCards = [];
-                cinkoAchieved = false;
-                ciftCinkoAchieved = false;
-                document.getElementById('drawnNumber').innerText = '';
-                document.getElementById('drawnNumbers').innerHTML = '';
-                document.getElementById('remainingStones').innerText = "Kalan Taş Sayısı: 90";
-                const cards = document.querySelectorAll('.card');
-                cards.forEach(card => {
-                    card.remove();
-                });
+                ws.send(JSON.stringify({ type: 'resetGame' }));
             }
         }
 
@@ -299,6 +306,8 @@
                 if (selectedCardElement) {
                     selectedCardsContainer.removeChild(selectedCardElement);
                 }
+                // Remove card from otherClientsCards.json
+                ws.send(JSON.stringify({ type: 'removeCard', cardId: card.dataset.cardId }));
             } else {
                 selectedCards.push(card);
                 card.style.borderColor = 'orange';
@@ -306,6 +315,9 @@
                 selectedCardElement.classList.add('selected-card');
                 selectedCardElement.dataset.cardId = card.dataset.cardId;
                 selectedCardsContainer.appendChild(selectedCardElement);
+                // Save card to otherClientsCards.json
+                const cardNumbers = Array.from(card.children).map(cell => cell.innerText ? parseInt(cell.innerText, 10) : null);
+                ws.send(JSON.stringify({ type: 'saveCard', cardId: card.dataset.cardId, cardNumbers, ownerName: playerName }));
             }
         }
 
@@ -317,30 +329,12 @@
         }
 
         function checkForCinkoOrTombala() {
-            selectedCards.forEach(card => {
-                const rows = [0, 9, 18];
-                let cinkoCount = 0;
-                rows.forEach(start => {
-                    const rowNumbers = Array.from(card.children).slice(start, start + 9);
-                    const markedCount = rowNumbers.filter(cell => cell.classList.contains('marked')).length;
-                    if (markedCount === 5) {
-                        cinkoCount++;
-                    }
-                });
-                if (cinkoCount === 1 && !cinkoAchieved) {
-                    card.classList.add('cinko');
-                    alert("Çinko!");
-                    cinkoAchieved = true;
-                } else if (cinkoCount === 2 && !ciftCinkoAchieved) {
-                    card.classList.add('cift-cinko');
-                    alert("Çift Çinko!");
-                    ciftCinkoAchieved = true;
-                } else if (cinkoCount === 3 && !card.classList.contains('tombala')) {
-                    card.classList.add('tombala');
-                    alert("Tombala!");
-                }
-            });
+            // Removed client-side checks for Çinko and Tombala
         }
+
+        document.addEventListener('DOMContentLoaded', (event) => {
+            loadCards();
+        });
 
         async function loadCards() {
             if (gameStarted) {
@@ -378,11 +372,60 @@
             });
         }
 
+        async function loadOtherClientsCards() {
+            const response = await fetch('otherClientsCards.json');
+            const cardsData = await response.json();
+            const cardsContainer = document.getElementById('cards');
+            cardsContainer.innerHTML = '';
+
+            Object.values(cardsData).forEach(cardData => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                cardData.cardNumbers.forEach(num => {
+                    const cell = document.createElement('div');
+                    cell.className = num ? 'number' : 'blank';
+                    if (num) {
+                        cell.innerText = num;
+                    }
+                    card.appendChild(cell);
+                });
+
+                const ownerDiv = document.createElement('div');
+                ownerDiv.className = 'card-owner';
+                ownerDiv.innerText = `Owner: ${cardData.ownerName}`;
+                card.appendChild(ownerDiv);
+
+                card.onclick = () => selectCard(card);
+                cardsContainer.appendChild(card);
+            });
+        }
+        
         function resetUser() {
             if (confirm("Kullanıcıyı sıfırlamak istediğinize emin misiniz?")) {
                 sessionStorage.removeItem('playerName');
                 playerName = null;
                 alert("User reset. Please refresh the page to enter a new name.");
+            }
+        }
+
+        function highlightCinko(cardId) {
+            const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
+            if (card) {
+                card.classList.add('cinko');
+            }
+        }
+
+        function highlightCiftCinko(cardId) {
+            const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
+            if (card) {
+                card.classList.add('cift-cinko');
+            }
+        }
+
+        function highlightTombala(cardId) {
+            const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
+            if (card) {
+                card.classList.add('tombala');
             }
         }
     </script>
