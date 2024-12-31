@@ -162,22 +162,7 @@
             });
         }
 
-        function addCardToSelectedContainer(cardId, cardNumbers) {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.id = cardId; // Set the card ID
 
-            cardNumbers.forEach(num => {
-                const cell = document.createElement('div');
-                cell.className = num ? 'number' : 'blank';
-                if (num) {
-                    cell.innerText = num;
-                }
-                card.appendChild(cell);
-            });
-
-            document.getElementById('cards').appendChild(card);
-        }
 
         let drawnNumbers = [];
         const totalStones = 90;

@@ -374,7 +374,7 @@
         function addCardToSelectedContainer(cardId, cardNumbers, ownerName) {
             const selectedCardsContainer = document.getElementById('selectedCardsContainer');
             const card = document.createElement('div');
-            card.className = 'selected-card';
+            card.className = 'selected-card card selected-card';
             card.dataset.cardId = cardId;
             cardNumbers.forEach(num => {
                 const cell = document.createElement('div');
