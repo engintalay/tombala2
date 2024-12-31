@@ -57,10 +57,21 @@ function generateAllCards() {
                         const num = col.splice(Math.floor(Math.random() * col.length), 1)[0];
                         cardNumbers[start + colIndex] = num;
                         columnCounts[colIndex]++;
+                        filledCount++;
                     }
                 }
             }
         });
+
+        // Ensure the card has exactly 15 numbers
+        const totalNumbers = cardNumbers.filter(num => num !== null).length;
+        if (totalNumbers > 15) {
+            const excessIndices = cardNumbers.map((num, index) => num !== null ? index : -1).filter(index => index !== -1);
+            while (cardNumbers.filter(num => num !== null).length > 15) {
+                const removeIndex = excessIndices.pop();
+                cardNumbers[removeIndex] = null;
+            }
+        }
 
         const cardString = JSON.stringify(cardNumbers);
         if (!generatedCards.has(cardString)) {

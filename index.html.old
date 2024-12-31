@@ -86,12 +86,10 @@
 
     <script>
         const socket = new WebSocket('ws://localhost:3000');
-        let clientColor = '#000000'; // Default color
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
             if (data.type === 'init') {
-                clientColor = data.clientColor; // Set the client color
                 // Initialize client state
             } else if (data.type === 'drawNumber') {
                 // Update drawn numbers
@@ -101,16 +99,8 @@
                 // Handle game reset
             } else if (data.type === 'selectCard') {
                 // Handle card selection
-                const card = document.getElementById(data.cardId);
-                if (card) {
-                    card.style.backgroundColor = data.clientColor;
-                }
             } else if (data.type === 'deselectCard') {
                 // Handle card deselection
-                const card = document.getElementById(data.cardId);
-                if (card) {
-                    card.style.backgroundColor = '';
-                }
             } else if (data.type === 'stopGame') {
                 // Handle game stop
             }
@@ -129,7 +119,7 @@
         }
 
         function selectCard(cardId, cardNumbers, ownerName) {
-            socket.send(JSON.stringify({ type: 'selectCard', cardId, cardNumbers, ownerName, clientColor }));
+            socket.send(JSON.stringify({ type: 'selectCard', cardId, cardNumbers, ownerName }));
         }
 
         function deselectCard(cardId) {
@@ -149,7 +139,6 @@
             Object.values(cardsData).forEach(cardData => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                card.id = cardData.cardId; // Set the card ID
                 cardData.cardNumbers.forEach(num => {
                     const cell = document.createElement('div');
                     cell.className = num ? 'number' : 'blank';
@@ -160,23 +149,6 @@
                 });
                 cardsContainer.appendChild(card);
             });
-        }
-
-        function addCardToSelectedContainer(cardId, cardNumbers) {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.id = cardId; // Set the card ID
-
-            cardNumbers.forEach(num => {
-                const cell = document.createElement('div');
-                cell.className = num ? 'number' : 'blank';
-                if (num) {
-                    cell.innerText = num;
-                }
-                card.appendChild(cell);
-            });
-
-            document.getElementById('cards').appendChild(card);
         }
 
         let drawnNumbers = [];

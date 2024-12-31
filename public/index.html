@@ -13,6 +13,7 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
+            width: 70%;
         }
         .card {
             display: grid;
@@ -334,9 +335,9 @@
                 selectedCardElement.classList.add('selected-card');
                 selectedCardElement.dataset.cardId = card.dataset.cardId;
                 const existingCardElement = selectedCardsContainer.querySelector(`[data-card-id="${card.dataset.cardId}"]`);
-                if (!existingCardElement) {
+                /*if (!existingCardElement) {
                     selectedCardsContainer.appendChild(selectedCardElement);
-                }
+                }*/
                 // Save card to otherClientsCards.json
                 const cardNumbers = Array.from(card.children).map(cell => cell.innerText ? parseInt(cell.innerText, 10) : null);
                 ws.send(JSON.stringify({ type: 'selectCard', cardId: card.dataset.cardId, cardNumbers, ownerName: playerName }));
@@ -350,6 +351,7 @@
                 card.classList.add('selected-card');
                 const ownerDiv = card.querySelector('.card-owner');
                 ownerDiv.innerText = `Owner: ${ownerName}`;
+                // TODO player name IP adresi ile birleştirilsin
                 if (ownerName !== playerName) {
                     card.onclick = null; // Disable further selection if not the owner
                 } else {

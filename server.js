@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
+const open = require('open'); // Ensure this line is present
 
 const app = express();
 const server = http.createServer(app);
@@ -12,15 +13,22 @@ let cinkoAchieved = false;
 let ciftCinkoAchieved = false;
 let gameStarted = false;
 let gameStarter = null;
+const clientColors = {}; // Store client colors
+const colors = ['#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#A133FF', '#33FFF5']; // Example colors
 
 app.use(express.static('public'));
 
-wss.on('connection', (ws) => {
-    console.log('New client connected');
-    ws.send(JSON.stringify({ type: 'init', drawnNumbers, cinkoAchieved, ciftCinkoAchieved, gameStarted }));
+wss.on('connection', (ws, req) => {
+    const ip = req.socket.remoteAddress; // Get the client's IP address
+    const clientId = ip + Date.now(); // Generate a unique client ID
+    const clientColor = colors.pop() || '#000000'; // Assign a color or default to black
+    clientColors[clientId] = clientColor;
+
+    console.log(`New client connected: ${ip}`);
+    ws.send(JSON.stringify({ type: 'init', drawnNumbers, cinkoAchieved, ciftCinkoAchieved, gameStarted, clientColor }));
 
     ws.on('message', (message) => {
-        console.log('Received message:', message);
+        console.log(`Received message from ${ip}:`, message); // Log the IP address
         const data = JSON.parse(message);
         if (data.type === 'drawNumber' && gameStarted && ws === gameStarter) {
             drawNumber(ws);
@@ -37,9 +45,9 @@ wss.on('connection', (ws) => {
             saveCard(data.cardId, data.cardNumbers, data.ownerName);
         } else if (data.type === 'removeCard') {
             removeCard(data.cardId);
+            broadcast({ type: 'deselectCard', cardId: data.cardId });
         } else if (data.type === 'selectCard') {
-            saveCard(data.cardId, data.cardNumbers, data.ownerName);
-            broadcast({ type: 'selectCard', cardId: data.cardId, cardNumbers: data.cardNumbers, ownerName: data.ownerName });
+            broadcast({ type: 'selectCard', cardId: data.cardId, cardNumbers: data.cardNumbers, ownerName: data.ownerName, clientColor });
         } else if (data.type === 'deselectCard') {
             removeCard(data.cardId);
             broadcast({ type: 'deselectCard', cardId: data.cardId });
@@ -50,11 +58,13 @@ wss.on('connection', (ws) => {
     });
 
     ws.on('close', () => {
-        console.log('Client disconnected');
+        console.log(`Client disconnected: ${ip}`);
+        colors.push(clientColors[clientId]); // Recycle the color
+        delete clientColors[clientId];
     });
 
     ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
+        console.error(`WebSocket error from ${ip}:`, error);
     });
 });
 
@@ -133,6 +143,7 @@ function resetGame() {
     ciftCinkoAchieved = false;
     gameStarted = false;
     gameStarter = null;
+    resetOtherClientsCards(); // Add this line to reset the cards
 }
 
 function broadcast(data) {
@@ -181,4 +192,5 @@ function resetOtherClientsCards() {
 
 server.listen(3000, () => {
     console.log('Server is listening on port 3000');
+    open('http://localhost:3000'); // Ensure this line is present
 });
