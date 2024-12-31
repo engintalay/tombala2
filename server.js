@@ -133,15 +133,17 @@ function checkForCinkoOrTombala() {
             }
         });
         if (cinkoCount === 1 && !cinkoAchieved) {
-            broadcast({ type: 'cinko', cardId });
+            console.log(`[Cinko Achieved] IP: ${gameStarter._socket.remoteAddress}, Card ID: ${cardId}, Owner: ${cardData.ownerName}`);
+            broadcast({ type: 'cinko', cardId, ownerName: cardData.ownerName, ip: gameStarter._socket.remoteAddress });
             broadcast({ type: 'alert', message: 'Çinko!' });
             cinkoAchieved = true;
         } else if (cinkoCount === 2 && !ciftCinkoAchieved) {
-            broadcast({ type: 'ciftCinko', cardId });
+            broadcast({ type: 'ciftCinko', cardId, ownerName: cardData.ownerName, ip: gameStarter._socket.remoteAddress });
             broadcast({ type: 'alert', message: 'Çift Çinko!' });
             ciftCinkoAchieved = true;
         } else if (cinkoCount === 3) {
-            broadcast({ type: 'tombala', cardId });
+            console.log(`[Tombala Achieved] IP: ${gameStarter._socket.remoteAddress}, Card ID: ${cardId}, Owner: ${cardData.ownerName}`);
+            broadcast({ type: 'tombala', cardId, ownerName: cardData.ownerName, ip: gameStarter._socket.remoteAddress });
             broadcast({ type: 'alert', message: 'Tombala!' });
             gameStarted = false;
         }

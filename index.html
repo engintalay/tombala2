@@ -43,6 +43,7 @@
         }
         .drawn-numbers {
             margin: 20px 0;
+            width: 70%;
         }
         .drawn-number {
             display: inline-block;
@@ -66,6 +67,28 @@
             border-color: red;
             background-color: lightcoral;
         }
+        .number-table {
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        .number-table td {
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            border: 1px solid #000;
+        }
+        .number-table .marked {
+            background-color: yellow;
+        }
+        .number-table .cinko {
+            background-color: green;
+        }
+        .number-table .cift-cinko {
+            background-color: blue;
+        }
+        .number-table .tombala {
+            background-color: red;
+        }
     </style>
 </head>
 <body>
@@ -83,6 +106,21 @@
         <p><span style="border: 1px solid green; padding: 2px; background-color: lightgreen;">&nbsp;&nbsp;&nbsp;&nbsp;</span> Çift Çinko</p>
         <p><span style="border: 1px solid red; padding: 2px; background-color: lightcoral;">&nbsp;&nbsp;&nbsp;&nbsp;</span> Tombala</p>
     </div>
+    <table class="number-table" id="numberTable">
+        <tbody>
+            <!-- Generate the number table -->
+            <script>
+                for (let i = 0; i < 9; i++) {
+                    document.write('<tr>');
+                    for (let j = 1; j <= 10; j++) {
+                        const number = i * 10 + j;
+                        document.write(`<td id="number-${number}">${number}</td>`);
+                    }
+                    document.write('</tr>');
+                }
+            </script>
+        </tbody>
+    </table>
 
     <script>
         const socket = new WebSocket('ws://localhost:3000');
@@ -94,6 +132,7 @@
                 clientColor = data.clientColor; // Set the client color
                 // Initialize client state
             } else if (data.type === 'drawNumber') {
+                updateNumberTable(data.number);
                 // Update drawn numbers
             } else if (data.type === 'startGame') {
                 loadSavedCards(); // Load saved cards when the game starts
@@ -113,6 +152,12 @@
                 }
             } else if (data.type === 'stopGame') {
                 // Handle game stop
+            } else if (data.type === 'cinko') {
+                logCinko(data.cardId, data.ownerName, data.ip);
+            } else if (data.type === 'ciftCinko') {
+                logCiftCinko(data.cardId, data.ownerName, data.ip);
+            } else if (data.type === 'tombala') {
+                logTombala(data.cardId, data.ownerName, data.ip);
             }
         };
 
@@ -121,6 +166,7 @@
         }
 
         function startGame() {
+            createNewNumberTable();
             socket.send(JSON.stringify({ type: 'startGame', selectedCards }));
         }
 
@@ -162,6 +208,41 @@
             });
         }
 
+        function updateNumberTable(number) {
+            const cell = document.getElementById(`number-${number}`);
+            if (cell) {
+                cell.classList.add('marked');
+            }
+            const newCell = document.getElementById(`new-${number}`);
+            if (newCell) {
+                newCell.classList.add('marked');
+            }
+        }
+
+        function logCinko(cardId, ownerName, ip) {
+            console.log(`Çinko! IP: ${ip}, Card ID: ${cardId}, Owner: ${ownerName}`);
+            const card = document.getElementById(cardId);
+            if (card) {
+                card.classList.add('cinko');
+            }
+        }
+
+        function logCiftCinko(cardId, ownerName, ip) {
+            console.log(`Çift Çinko! IP: ${ip}, Card ID: ${cardId}, Owner: ${ownerName}`);
+            const card = document.getElementById(cardId);
+            if (card) {
+                card.classList.add('cift-cinko');
+            }
+        }
+
+        function logTombala(cardId, ownerName, ip) {
+            console.log(`Tombala! IP: ${ip}, Card ID: ${cardId}, Owner: ${ownerName}`);
+            const card = document.getElementById(cardId);
+            if (card) {
+                card.classList.add('tombala');
+            }
+        }
+
         let drawnNumbers = [];
         const totalStones = 90;
         let cinkoAchieved = false;
@@ -188,6 +269,7 @@
             updateDrawnNumbers();
             updateRemainingStones();
             markDrawnNumbersOnCards();
+            updateNumberTable(number);
             checkForCinkoOrTombala();
         }
 
@@ -338,6 +420,35 @@
             document.getElementById('drawnNumbers').innerHTML = '';
             document.getElementById('remainingStones').innerText = "Kalan Taş Sayısı: 90";
             document.getElementById('cards').innerHTML = '';
+            const numberCells = document.querySelectorAll('.number-table td');
+            numberCells.forEach(cell => {
+                cell.className = '';
+            });
+        }
+
+        function createNewNumberTable() {
+            const container = document.createElement('div');
+            container.id = 'newNumberTableContainer';
+            const table = document.createElement('table');
+            table.id = 'newNumberTable';
+            table.border = '1';
+            const tbody = document.createElement('tbody');
+
+            for (let i = 0; i < 9; i++) {
+                const row = document.createElement('tr');
+                for (let j = 1; j <= 10; j++) {
+                    const number = i * 10 + j;
+                    const cell = document.createElement('td');
+                    cell.id = `new-${number}`;
+                    cell.innerText = number;
+                    row.appendChild(cell);
+                }
+                tbody.appendChild(row);
+            }
+
+            table.appendChild(tbody);
+            container.appendChild(table);
+            document.body.appendChild(container);
         }
     </script>
 </body>
