@@ -47,6 +47,7 @@ wss.on('connection', (ws, req) => {
             removeCard(data.cardId);
             broadcast({ type: 'deselectCard', cardId: data.cardId });
         } else if (data.type === 'selectCard') {
+            saveCard(data.cardId, data.cardNumbers, data.ownerName);
             broadcast({ type: 'selectCard', cardId: data.cardId, cardNumbers: data.cardNumbers, ownerName: data.ownerName, clientColor });
         } else if (data.type === 'deselectCard') {
             removeCard(data.cardId);
@@ -77,6 +78,16 @@ app.get('/cards.json', (req, res) => {
     fs.readFile('cards.json', 'utf8', (err, data) => {
         if (err) {
             res.status(500).send('Error reading cards.json');
+            return;
+        }
+        res.json(JSON.parse(data));
+    });
+});
+
+app.get('/savedCards', (req, res) => {
+    fs.readFile('otherClientsCards.json', 'utf8', (err, data) => {
+        if (err) {
+            res.status(500).send('Error reading otherClientsCards.json');
             return;
         }
         res.json(JSON.parse(data));

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,42 +10,53 @@
             font-family: Arial, sans-serif;
             text-align: center;
         }
+
         .cards-container {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
             width: 70%;
         }
+
         .card {
             display: grid;
             grid-template-columns: repeat(9, 1fr);
             grid-template-rows: repeat(3, 1fr);
             grid-gap: 2px;
-            width: 240px; /* Reduced width */
+            width: 240px;
+            /* Reduced width */
             margin: 10px;
             padding: 10px;
             border: 1px solid #000;
             background-color: #fff;
         }
-        .number, .blank {
+
+        .number,
+        .blank {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 20px; /* Reduced width */
-            height: 20px; /* Reduced height */
+            width: 20px;
+            /* Reduced width */
+            height: 20px;
+            /* Reduced height */
             border: 1px solid #000;
             margin: 0;
             text-align: center;
         }
+
         .blank {
             background-color: #f0f0f0;
         }
+
         .marked {
             background-color: yellow;
         }
+
         .drawn-numbers {
             margin: 20px 0;
         }
+
         .drawn-number {
             display: inline-block;
             width: 30px;
@@ -55,27 +67,34 @@
             text-align: center;
             background-color: #ddd;
         }
+
         .cinko {
             border-color: blue;
             background-color: lightblue;
         }
+
         .cift-cinko {
             border-color: green;
             background-color: lightgreen;
         }
+
         .tombala {
             border-color: red;
             background-color: lightcoral;
         }
+
         .card-owner {
             font-size: 12px;
             color: gray;
-            grid-column: span 9; /* Span the entire row */
+            grid-column: span 9;
+            /* Span the entire row */
             text-align: center;
         }
+
         .reset-user {
             margin-top: 20px;
         }
+
         .selected-cards-container {
             position: fixed;
             right: 0;
@@ -87,12 +106,15 @@
             border-left: 1px solid #ccc;
             padding: 10px;
         }
+
         .selected-card {
             margin-bottom: 10px;
-            background-color: #d3d3d3; /* Dark background color for selected cards */
+            background-color: #d3d3d3;
+            /* Dark background color for selected cards */
         }
     </style>
 </head>
+
 <body>
     <h1>Tombala</h1>
     <button onclick="startGame()">Oyunu Başlat</button>
@@ -376,6 +398,7 @@
             const card = document.createElement('div');
             card.className = 'selected-card card selected-card';
             card.dataset.cardId = cardId;
+            console.log(cardNumbers);
             cardNumbers.forEach(num => {
                 const cell = document.createElement('div');
                 cell.className = num ? 'number' : 'blank';
@@ -384,6 +407,9 @@
                 }
                 card.appendChild(cell);
             });
+            if (card.lastChild) {
+                card.removeChild(card.lastChild);
+            }
 
             const ownerDiv = document.createElement('div');
             ownerDiv.className = 'card-owner';
@@ -479,7 +505,7 @@
                 selectedCardsContainer.appendChild(card);
             });
         }
-        
+
         function resetUser() {
             if (confirm("Kullanıcıyı sıfırlamak istediğinize emin misiniz?")) {
                 sessionStorage.removeItem('playerName');
@@ -527,4 +553,5 @@
         }
     </script>
 </body>
+
 </html>

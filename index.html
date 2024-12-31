@@ -141,7 +141,7 @@
         }
 
         async function loadSavedCards() {
-            const response = await fetch('otherClientsCards.json');
+            const response = await fetch('/savedCards');
             const cardsData = await response.json();
             const cardsContainer = document.getElementById('cards');
             cardsContainer.innerHTML = '';
@@ -161,8 +161,6 @@
                 cardsContainer.appendChild(card);
             });
         }
-
-
 
         let drawnNumbers = [];
         const totalStones = 90;
