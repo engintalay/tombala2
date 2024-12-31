@@ -27,6 +27,8 @@ wss.on('connection', (ws) => {
         } else if (data.type === 'startGame') {
             gameStarted = true;
             gameStarter = ws;
+            resetOtherClientsCards();
+            saveSelectedCards(data.selectedCards);
             broadcast({ type: 'startGame' });
         } else if (data.type === 'resetGame' && ws === gameStarter) {
             resetGame();
@@ -35,6 +37,12 @@ wss.on('connection', (ws) => {
             saveCard(data.cardId, data.cardNumbers, data.ownerName);
         } else if (data.type === 'removeCard') {
             removeCard(data.cardId);
+        } else if (data.type === 'selectCard') {
+            saveCard(data.cardId, data.cardNumbers, data.ownerName);
+            broadcast({ type: 'selectCard', cardId: data.cardId, cardNumbers: data.cardNumbers, ownerName: data.ownerName });
+        } else if (data.type === 'deselectCard') {
+            removeCard(data.cardId);
+            broadcast({ type: 'deselectCard', cardId: data.cardId });
         } else if (data.type === 'stopGame') {
             gameStarted = false;
             broadcast({ type: 'stopGame' });
@@ -139,7 +147,10 @@ function saveCard(cardId, cardNumbers, ownerName) {
     const filePath = 'otherClientsCards.json';
     let cardsData = {};
     if (fs.existsSync(filePath)) {
-        cardsData = JSON.parse(fs.readFileSync(filePath));
+        const fileContent = fs.readFileSync(filePath, 'utf8');
+        if (fileContent) {
+            cardsData = JSON.parse(fileContent);
+        }
     }
     cardsData[cardId] = { cardNumbers, ownerName };
     fs.writeFileSync(filePath, JSON.stringify(cardsData, null, 2));
@@ -152,6 +163,20 @@ function removeCard(cardId) {
         delete cardsData[cardId];
         fs.writeFileSync(filePath, JSON.stringify(cardsData, null, 2));
     }
+}
+
+function saveSelectedCards(selectedCards) {
+    const filePath = 'otherClientsCards.json';
+    let cardsData = {};
+    selectedCards.forEach(card => {
+        cardsData[card.cardId] = { cardNumbers: card.cardNumbers, ownerName: card.ownerName };
+    });
+    fs.writeFileSync(filePath, JSON.stringify(cardsData, null, 2));
+}
+
+function resetOtherClientsCards() {
+    const filePath = 'otherClientsCards.json';
+    fs.writeFileSync(filePath, JSON.stringify({}, null, 2));
 }
 
 server.listen(3000, () => {

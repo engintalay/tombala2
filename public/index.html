@@ -88,6 +88,7 @@
         }
         .selected-card {
             margin-bottom: 10px;
+            background-color: #d3d3d3; /* Dark background color for selected cards */
         }
     </style>
 </head>
@@ -132,6 +133,7 @@
                 updateDrawnNumbers();
                 updateRemainingStones();
                 markDrawnNumbersOnCards();
+                loadOtherClientsCards(); // Load other clients' selected cards on init
             } else if (data.type === 'drawNumber') {
                 drawnNumbers = data.drawnNumbers;
                 document.getElementById('drawnNumber').innerText = "Çekilen Taş: " + data.number;
@@ -177,6 +179,12 @@
                 alert("Tombala!");
                 highlightTombala(data.cardId);
                 gameStarted = false; // Stop the game
+            } else if (data.type === 'selectCard') {
+                markCardAsSelected(data.cardId, data.ownerName);
+                addCardToSelectedContainer(data.cardId, data.cardNumbers, data.ownerName);
+            } else if (data.type === 'deselectCard') {
+                markCardAsDeselected(data.cardId);
+                removeCardFromSelectedContainer(data.cardId);
             }
         };
 
@@ -186,7 +194,11 @@
                 return;
             }
             if (confirm("Oyunu başlatmak istediğinize emin misiniz?")) {
-                ws.send(JSON.stringify({ type: 'startGame' }));
+                const selectedCardData = selectedCards.map(card => {
+                    const cardNumbers = Array.from(card.children).map(cell => cell.innerText ? parseInt(cell.innerText, 10) : null);
+                    return { cardId: card.dataset.cardId, cardNumbers, ownerName: playerName };
+                });
+                ws.send(JSON.stringify({ type: 'startGame', selectedCards: selectedCardData }));
                 isGameStarter = true;
             }
         }
@@ -254,6 +266,7 @@
             askForPlayerName();
             const card = document.createElement('div');
             card.className = 'card';
+            card.dataset.cardId = `card-${Date.now()}`; // Assign a unique ID to each card
             const columns = Array.from({ length: 9 }, (_, i) => {
                 const start = i * 10 + 1;
                 const end = start + 9;
@@ -294,7 +307,7 @@
             document.getElementById('cards').appendChild(card);
 
             // Send card data to server
-            ws.send(JSON.stringify({ type: 'newCard', cardNumbers, ownerName: playerName }));
+            ws.send(JSON.stringify({ type: 'newCard', cardId: card.dataset.cardId, cardNumbers, ownerName: playerName }));
         }
 
         function selectCard(card) {
@@ -302,22 +315,87 @@
             if (selectedCards.includes(card)) {
                 selectedCards = selectedCards.filter(c => c !== card);
                 card.style.borderColor = '';
+                card.classList.remove('selected-card');
                 const selectedCardElement = selectedCardsContainer.querySelector(`[data-card-id="${card.dataset.cardId}"]`);
                 if (selectedCardElement) {
                     selectedCardsContainer.removeChild(selectedCardElement);
                 }
                 // Remove card from otherClientsCards.json
-                ws.send(JSON.stringify({ type: 'removeCard', cardId: card.dataset.cardId }));
+                ws.send(JSON.stringify({ type: 'deselectCard', cardId: card.dataset.cardId }));
             } else {
+                if (card.style.borderColor === 'orange') {
+                    alert("Bu kart zaten başka bir kullanıcı tarafından seçildi!");
+                    return;
+                }
                 selectedCards.push(card);
                 card.style.borderColor = 'orange';
+                card.classList.add('selected-card');
                 const selectedCardElement = card.cloneNode(true);
                 selectedCardElement.classList.add('selected-card');
                 selectedCardElement.dataset.cardId = card.dataset.cardId;
-                selectedCardsContainer.appendChild(selectedCardElement);
+                const existingCardElement = selectedCardsContainer.querySelector(`[data-card-id="${card.dataset.cardId}"]`);
+                if (!existingCardElement) {
+                    selectedCardsContainer.appendChild(selectedCardElement);
+                }
                 // Save card to otherClientsCards.json
                 const cardNumbers = Array.from(card.children).map(cell => cell.innerText ? parseInt(cell.innerText, 10) : null);
-                ws.send(JSON.stringify({ type: 'saveCard', cardId: card.dataset.cardId, cardNumbers, ownerName: playerName }));
+                ws.send(JSON.stringify({ type: 'selectCard', cardId: card.dataset.cardId, cardNumbers, ownerName: playerName }));
+            }
+        }
+
+        function markCardAsSelected(cardId, ownerName) {
+            const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
+            if (card) {
+                card.style.borderColor = 'orange';
+                card.classList.add('selected-card');
+                const ownerDiv = card.querySelector('.card-owner');
+                ownerDiv.innerText = `Owner: ${ownerName}`;
+                if (ownerName !== playerName) {
+                    card.onclick = null; // Disable further selection if not the owner
+                } else {
+                    card.onclick = () => deselectCard(card); // Allow deselection if the owner
+                }
+            }
+        }
+
+        function markCardAsDeselected(cardId) {
+            const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
+            if (card) {
+                card.style.borderColor = '';
+                card.classList.remove('selected-card');
+                const ownerDiv = card.querySelector('.card-owner');
+                ownerDiv.innerText = '';
+                card.onclick = () => selectCard(card); // Enable selection again
+            }
+        }
+
+        function addCardToSelectedContainer(cardId, cardNumbers, ownerName) {
+            const selectedCardsContainer = document.getElementById('selectedCardsContainer');
+            const card = document.createElement('div');
+            card.className = 'selected-card';
+            card.dataset.cardId = cardId;
+            cardNumbers.forEach(num => {
+                const cell = document.createElement('div');
+                cell.className = num ? 'number' : 'blank';
+                if (num) {
+                    cell.innerText = num;
+                }
+                card.appendChild(cell);
+            });
+
+            const ownerDiv = document.createElement('div');
+            ownerDiv.className = 'card-owner';
+            ownerDiv.innerText = `Owner: ${ownerName}`;
+            card.appendChild(ownerDiv);
+
+            selectedCardsContainer.appendChild(card);
+        }
+
+        function removeCardFromSelectedContainer(cardId) {
+            const selectedCardsContainer = document.getElementById('selectedCardsContainer');
+            const selectedCardElement = selectedCardsContainer.querySelector(`[data-card-id="${cardId}"]`);
+            if (selectedCardElement) {
+                selectedCardsContainer.removeChild(selectedCardElement);
             }
         }
 
@@ -347,9 +425,10 @@
             const cardsContainer = document.getElementById('cards');
             cardsContainer.innerHTML = '';
 
-            Object.values(cardsData).forEach(cardNumbers => {
+            Object.entries(cardsData).forEach(([cardId, cardNumbers]) => {
                 const card = document.createElement('div');
                 card.className = 'card';
+                card.dataset.cardId = cardId;
                 cardNumbers.forEach(num => {
                     const cell = document.createElement('div');
                     cell.className = num ? 'number' : 'blank';
@@ -361,26 +440,26 @@
 
                 const ownerDiv = document.createElement('div');
                 ownerDiv.className = 'card-owner';
-                ownerDiv.innerText = `Owner: ${playerName}`;
+                ownerDiv.innerText = ''; // No owner initially
                 card.appendChild(ownerDiv);
 
                 card.onclick = () => selectCard(card);
                 cardsContainer.appendChild(card);
 
                 // Send card data to server
-                ws.send(JSON.stringify({ type: 'newCard', cardNumbers, ownerName: playerName }));
+                ws.send(JSON.stringify({ type: 'newCard', cardId, cardNumbers, ownerName: '' }));
             });
         }
 
         async function loadOtherClientsCards() {
             const response = await fetch('otherClientsCards.json');
             const cardsData = await response.json();
-            const cardsContainer = document.getElementById('cards');
-            cardsContainer.innerHTML = '';
+            const selectedCardsContainer = document.getElementById('selectedCardsContainer');
 
             Object.values(cardsData).forEach(cardData => {
                 const card = document.createElement('div');
-                card.className = 'card';
+                card.className = 'selected-card';
+                card.dataset.cardId = cardData.cardId;
                 cardData.cardNumbers.forEach(num => {
                     const cell = document.createElement('div');
                     cell.className = num ? 'number' : 'blank';
@@ -395,8 +474,7 @@
                 ownerDiv.innerText = `Owner: ${cardData.ownerName}`;
                 card.appendChild(ownerDiv);
 
-                card.onclick = () => selectCard(card);
-                cardsContainer.appendChild(card);
+                selectedCardsContainer.appendChild(card);
             });
         }
         
@@ -427,6 +505,23 @@
             if (card) {
                 card.classList.add('tombala');
             }
+        }
+
+        function deselectCard(card) {
+            if (card.querySelector('.card-owner').innerText !== `Owner: ${playerName}`) {
+                alert("Bu kartı sadece sahibi seçimini kaldırabilir!");
+                return;
+            }
+            const selectedCardsContainer = document.getElementById('selectedCardsContainer');
+            selectedCards = selectedCards.filter(c => c !== card);
+            card.style.borderColor = '';
+            card.classList.remove('selected-card');
+            const selectedCardElement = selectedCardsContainer.querySelector(`[data-card-id="${card.dataset.cardId}"]`);
+            if (selectedCardElement) {
+                selectedCardsContainer.removeChild(selectedCardElement);
+            }
+            // Remove card from otherClientsCards.json
+            ws.send(JSON.stringify({ type: 'deselectCard', cardId: card.dataset.cardId }));
         }
     </script>
 </body>
