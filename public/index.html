@@ -354,15 +354,10 @@
                 selectedCards.push(card);
                 card.style.borderColor = 'orange';
                 card.classList.add('selected-card');
-                const selectedCardElement = card.cloneNode(true);
-                selectedCardElement.classList.add('selected-card');
-                selectedCardElement.dataset.cardId = card.dataset.cardId;
-                const existingCardElement = selectedCardsContainer.querySelector(`[data-card-id="${card.dataset.cardId}"]`);
-                /*if (!existingCardElement) {
-                    selectedCardsContainer.appendChild(selectedCardElement);
-                }*/
                 // Save card to otherClientsCards.json
-                const cardNumbers = Array.from(card.children).map(cell => cell.innerText ? parseInt(cell.innerText, 10) : null);
+                const cardNumbers = Array.from(card.children)
+                    .filter(cell => !cell.classList.contains('card-owner'))
+                    .map(cell => cell.innerText ? parseInt(cell.innerText, 10) : null);
                 ws.send(JSON.stringify({ type: 'selectCard', cardId: card.dataset.cardId, cardNumbers, ownerName: playerName }));
             }
         }
@@ -537,7 +532,8 @@
         }
 
         function deselectCard(card) {
-            if (card.querySelector('.card-owner').innerText !== `Owner: ${playerName}`) {
+            const ownerDiv = card.querySelector('.card-owner');
+            if (ownerDiv && ownerDiv.innerText !== `Owner: ${playerName}`) {
                 alert("Bu kartı sadece sahibi seçimini kaldırabilir!");
                 return;
             }

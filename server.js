@@ -29,32 +29,36 @@ wss.on('connection', (ws, req) => {
 
     ws.on('message', (message) => {
         console.log(`Received message from ${ip}:`, message); // Log the IP address
-        const data = JSON.parse(message);
-        if (data.type === 'drawNumber' && gameStarted && ws === gameStarter) {
-            drawNumber(ws);
-        } else if (data.type === 'startGame') {
-            gameStarted = true;
-            gameStarter = ws;
-            resetOtherClientsCards();
-            saveSelectedCards(data.selectedCards);
-            broadcast({ type: 'startGame' });
-        } else if (data.type === 'resetGame' && ws === gameStarter) {
-            resetGame();
-            broadcast({ type: 'resetGame' });
-        } else if (data.type === 'saveCard') {
-            saveCard(data.cardId, data.cardNumbers, data.ownerName);
-        } else if (data.type === 'removeCard') {
-            removeCard(data.cardId);
-            broadcast({ type: 'deselectCard', cardId: data.cardId });
-        } else if (data.type === 'selectCard') {
-            saveCard(data.cardId, data.cardNumbers, data.ownerName);
-            broadcast({ type: 'selectCard', cardId: data.cardId, cardNumbers: data.cardNumbers, ownerName: data.ownerName, clientColor });
-        } else if (data.type === 'deselectCard') {
-            removeCard(data.cardId);
-            broadcast({ type: 'deselectCard', cardId: data.cardId });
-        } else if (data.type === 'stopGame') {
-            gameStarted = false;
-            broadcast({ type: 'stopGame' });
+        try {
+            const data = JSON.parse(message);
+            if (data.type === 'drawNumber' && gameStarted && ws === gameStarter) {
+                drawNumber(ws);
+            } else if (data.type === 'startGame') {
+                gameStarted = true;
+                gameStarter = ws;
+                resetOtherClientsCards();
+                saveSelectedCards(data.selectedCards);
+                broadcast({ type: 'startGame' });
+            } else if (data.type === 'resetGame' && ws === gameStarter) {
+                resetGame();
+                broadcast({ type: 'resetGame' });
+            } else if (data.type === 'saveCard') {
+                saveCard(data.cardId, data.cardNumbers, data.ownerName);
+            } else if (data.type === 'removeCard') {
+                removeCard(data.cardId);
+                broadcast({ type: 'deselectCard', cardId: data.cardId });
+            } else if (data.type === 'selectCard') {
+                saveCard(data.cardId, data.cardNumbers, data.ownerName);
+                broadcast({ type: 'selectCard', cardId: data.cardId, cardNumbers: data.cardNumbers, ownerName: data.ownerName, clientColor });
+            } else if (data.type === 'deselectCard') {
+                removeCard(data.cardId);
+                broadcast({ type: 'deselectCard', cardId: data.cardId });
+            } else if (data.type === 'stopGame') {
+                gameStarted = false;
+                broadcast({ type: 'stopGame' });
+            }
+        } catch (error) {
+            console.error(`Error parsing message from ${ip}:`, error);
         }
     });
 
@@ -121,29 +125,32 @@ function drawNumber(ws) {
 
 function checkForCinkoOrTombala() {
     const cardsData = JSON.parse(fs.readFileSync('otherClientsCards.json'));
+    const starterIp = gameStarter && gameStarter._socket ? gameStarter._socket.remoteAddress : 'Unknown';
+    
     Object.entries(cardsData).forEach(([cardId, cardData]) => {
         const cardNumbers = cardData.cardNumbers;
         const rows = [0, 9, 18];
         let cinkoCount = 0;
         rows.forEach(start => {
             const rowNumbers = cardNumbers.slice(start, start + 9);
-            const markedCount = rowNumbers.filter(num => drawnNumbers.includes(num)).length;
+            const markedCount = rowNumbers.filter(num => num !== null && drawnNumbers.includes(num)).length;
             if (markedCount === 5) {
                 cinkoCount++;
             }
         });
         if (cinkoCount === 1 && !cinkoAchieved) {
-            console.log(`[Cinko Achieved] IP: ${gameStarter._socket.remoteAddress}, Card ID: ${cardId}, Owner: ${cardData.ownerName}`);
-            broadcast({ type: 'cinko', cardId, ownerName: cardData.ownerName, ip: gameStarter._socket.remoteAddress });
+            console.log(`[Cinko Achieved] IP: ${starterIp}, Card ID: ${cardId}, Owner: ${cardData.ownerName}`);
+            broadcast({ type: 'cinko', cardId, ownerName: cardData.ownerName, ip: starterIp });
             broadcast({ type: 'alert', message: 'Çinko!' });
             cinkoAchieved = true;
         } else if (cinkoCount === 2 && !ciftCinkoAchieved) {
-            broadcast({ type: 'ciftCinko', cardId, ownerName: cardData.ownerName, ip: gameStarter._socket.remoteAddress });
+            console.log(`[Çift Cinko Achieved] IP: ${starterIp}, Card ID: ${cardId}, Owner: ${cardData.ownerName}`);
+            broadcast({ type: 'ciftCinko', cardId, ownerName: cardData.ownerName, ip: starterIp });
             broadcast({ type: 'alert', message: 'Çift Çinko!' });
             ciftCinkoAchieved = true;
         } else if (cinkoCount === 3) {
-            console.log(`[Tombala Achieved] IP: ${gameStarter._socket.remoteAddress}, Card ID: ${cardId}, Owner: ${cardData.ownerName}`);
-            broadcast({ type: 'tombala', cardId, ownerName: cardData.ownerName, ip: gameStarter._socket.remoteAddress });
+            console.log(`[Tombala Achieved] IP: ${starterIp}, Card ID: ${cardId}, Owner: ${cardData.ownerName}`);
+            broadcast({ type: 'tombala', cardId, ownerName: cardData.ownerName, ip: starterIp });
             broadcast({ type: 'alert', message: 'Tombala!' });
             gameStarted = false;
         }
